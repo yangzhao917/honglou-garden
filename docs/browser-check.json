@@ -1,0 +1,28 @@
+{
+  "cameraChangesImage": true,
+  "timing": {
+    "frames": 121,
+    "durationMs": 2008,
+    "averageFps": 60
+  },
+  "sizes": [
+    {
+      "width": 1280,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    }
+  ],
+  "reducedMotionWorks": true,
+  "errors": [],
+  "environment": "Local headless Chrome; RAF sampling is not a hardware performance certification"
+}

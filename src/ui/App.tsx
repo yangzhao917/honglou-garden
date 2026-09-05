@@ -1,5 +1,6 @@
 import GardenMusic from "./GardenMusic";
 import HouseArt from "./HouseArt";
+import PoemCube from "./PoemCube";
 import Portrait from "./Portrait";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -112,6 +113,7 @@ export default function App() {
     window.addEventListener("popstate", pop);
     return () => window.removeEventListener("popstate", pop);
   }, []);
+
   const choosePlace = useCallback(
     (id: string) => {
       update(selectPlace(story, id));
@@ -130,6 +132,16 @@ export default function App() {
     setDetailTab("故事");
     camera("focus");
   };
+
+  // 阅读抽屉内"回到故事"按钮的事件通道
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (id) chooseStory(id);
+    };
+    window.addEventListener("reader:goto-story", handler);
+    return () => window.removeEventListener("reader:goto-story", handler);
+  }, [chooseStory]);
   const tourRoute = story?.places ?? [];
   const moveTour = useCallback(
     (index: number) => {
@@ -937,30 +949,38 @@ export default function App() {
                   ? "药方 · 曹雪芹《红楼梦》"
                   : "食饮 · 曹雪芹《红楼梦》"}
             </Dialog.Description>
-            <div className="poem-lines">
-              {reading?.lines.map((l) => (
-                <p key={l}>{l}</p>
-              ))}
-            </div>
-            <p className="poem-context">{reading?.context}</p>
-            <div className="poem-footer">
-              <a
-                href={sourceUrl(reading?.chapter ?? 17)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                查看原文出处 <ArrowUpRight size={14} />
-              </a>
-              <button
-                onClick={() => {
-                  const s = stories.find((s) => s.poems.includes(reading!.id));
-                  if (s) chooseStory(s.id);
-                  setReading(null);
-                }}
-              >
-                回到故事 <ArrowRight size={15} />
-              </button>
-            </div>
+            {reading?.kind === "poem" ? (
+              <ReadingReader entry={reading} onClose={() => setReading(null)} />
+            ) : (
+              <>
+                <div className="poem-lines">
+                  {reading?.lines.map((l) => (
+                    <p key={l}>{l}</p>
+                  ))}
+                </div>
+                <p className="poem-context">{reading?.context}</p>
+                <div className="poem-footer">
+                  <a
+                    href={sourceUrl(reading?.chapter ?? 17)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    查看原文出处 <ArrowUpRight size={14} />
+                  </a>
+                  <button
+                    onClick={() => {
+                      const s = stories.find((s) =>
+                        s.poems.includes(reading!.id),
+                      );
+                      if (s) chooseStory(s.id);
+                      setReading(null);
+                    }}
+                  >
+                    回到故事 <ArrowRight size={15} />
+                  </button>
+                </div>
+              </>
+            )}
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
@@ -1128,4 +1148,29 @@ function PersonLinks({
 /* 人物姓名 → 对象 */
 function personByName(name: string) {
   return people.find((p) => p.name === name);
+}
+
+/* —— 诗词阅读器：使用 Three.js 立方体卡牌切换 —— */
+function ReadingReader({
+  entry,
+  onClose,
+}: {
+  entry: LiteraryEntry;
+  onClose: () => void;
+}) {
+  const onGotoStory = () => {
+    const s = stories.find((s) => s.poems.includes(entry.id));
+    if (s) {
+      window.dispatchEvent(
+        new CustomEvent("reader:goto-story", { detail: s.id }),
+      );
+    }
+    onClose();
+  };
+
+  return (
+    <div className="reader">
+      <PoemCube entry={entry} onGotoStory={onGotoStory} />
+    </div>
+  );
 }

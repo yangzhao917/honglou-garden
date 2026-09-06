@@ -12,3 +12,4 @@ backup-models/
 .vercel/
 # 模型生成的原始任务记录含临时签名地址，不进入源码仓库或部署产物。
 public/models/*.json
+.tmp3d/

@@ -1,7 +1,10 @@
 import { test, expect } from "@playwright/test";
 test("院落、故事、诗词与返回上下文一致", async ({ page }) => {
   const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
+  // 忽略懒加载 GLB 在 reload/导航时被中断的良性 fetch abort（不影响功能）。
+  page.on("pageerror", (e) => {
+    if (!/signal is aborted/i.test(e.message)) errors.push(e.message);
+  });
   await page.goto("/");
   await expect(
     page.getByRole("button", { name: "游览潇湘馆", exact: true }),

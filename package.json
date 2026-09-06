@@ -21,6 +21,7 @@
     "three": "^0.180.0"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.5.0",
     "@playwright/test": "^1.55.0",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",

@@ -1,5 +1,5 @@
 // 诗词意境图组件：调用服务端 GPT Image 2 → 显示加载 → 显示图片 → 支持重生成。
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { LiteraryEntry } from "../domain/models";
 import { buildPoemPrompt } from "../application/poemArt";
 import { generateImage } from "../application/openaiImage";
@@ -17,36 +17,57 @@ type Status =
   | { kind: "ready"; url: string; prompt: string; seed: number }
   | { kind: "error"; message: string };
 
+type CachedArt = { url: string; prompt: string; seed: number };
+const artCache = new Map<string, CachedArt>();
+const pendingArt = new Map<string, ReturnType<typeof generateImage>>();
+const MAX_CACHED_ARTS = 12;
+
+function cacheArt(poemId: string, art: CachedArt) {
+  artCache.delete(poemId);
+  artCache.set(poemId, art);
+  if (artCache.size > MAX_CACHED_ARTS) {
+    artCache.delete(artCache.keys().next().value!);
+  }
+}
+
 export default function PoemArt({ poem, compact = false }: Props) {
-  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [status, setStatus] = useState<Status>(() => {
+    const cached = artCache.get(poem.id);
+    return cached ? { kind: "ready", ...cached } : { kind: "idle" };
+  });
   const [fadeKey, setFadeKey] = useState(0); // 切图时强制重放淡入
-  const abortRef = useRef<AbortController | null>(null);
 
   const start = useCallback(
     async (seed: number) => {
-      // 取消上一次
-      abortRef.current?.abort();
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-
       const prompt = buildPoemPrompt(poem, seed);
-      setStatus({ kind: "loading", message: "正在生成意境图…" });
+      setStatus({ kind: "loading", message: "正在为这首诗铺陈意境…" });
 
-      const r = await generateImage({
-        prompt,
-        signal: ctrl.signal,
-      });
+      try {
+        let task = pendingArt.get(poem.id);
+        if (!task) {
+          task = generateImage({ prompt });
+          pendingArt.set(poem.id, task);
+        }
+        const r = await task;
+        if (pendingArt.get(poem.id) === task) pendingArt.delete(poem.id);
 
-      if (ctrl.signal.aborted) return;
-
-      if (r) {
-        setStatus({ kind: "ready", url: r.url, prompt, seed });
-        setFadeKey((k) => k + 1);
-      } else {
+        if (r) {
+          const art = { url: r.url, prompt, seed };
+          cacheArt(poem.id, art);
+          setStatus({ kind: "ready", ...art });
+          setFadeKey((k) => k + 1);
+          return;
+        }
         setStatus({
           kind: "error",
           message:
             "未能生成意境图。可能由于 API Key、网络或模型繁忙，请稍后再试。",
+        });
+      } catch {
+        pendingArt.delete(poem.id);
+        setStatus({
+          kind: "error",
+          message: "未能连接图片生成服务，请稍后重试。",
         });
       }
     },
@@ -55,14 +76,13 @@ export default function PoemArt({ poem, compact = false }: Props) {
 
   // 自动开始一次
   useEffect(() => {
+    const cached = artCache.get(poem.id);
+    if (cached) {
+      setStatus({ kind: "ready", ...cached });
+      return;
+    }
     start(Math.floor(Math.random() * 2_000_000_000));
-    return () => abortRef.current?.abort();
   }, [poem.id, start]);
-
-  // 组件卸载 / 切换诗时取消
-  useEffect(() => {
-    return () => abortRef.current?.abort();
-  }, []);
 
   return (
     <div className={"poem-art" + (compact ? " poem-art-compact" : "")}>
@@ -81,16 +101,16 @@ export default function PoemArt({ poem, compact = false }: Props) {
               <Sparkles size={14} />
               {status.message}
             </p>
-            <small>GPT Image 2 · 实时绘制</small>
           </div>
         )}
 
         {status.kind === "error" && (
-          <div className="poem-art-error">
-            <AlertCircle size={26} />
-            <p>{status.message}</p>
+          <div className="poem-art-error poem-art-fallback">
+            <div className="poem-art-ink" />
+            <AlertCircle size={20} />
+            <p>意境暂未显现</p>
             <button onClick={() => start(Math.floor(Math.random() * 2_000_000_000))}>
-              <RefreshCw size={13} /> 重试一次
+              <RefreshCw size={13} /> 再试一次
             </button>
           </div>
         )}
@@ -124,10 +144,6 @@ export default function PoemArt({ poem, compact = false }: Props) {
       </div>
 
       <div className="poem-art-foot">
-        <span className="poem-art-stamp">
-          <Sparkles size={11} />
-          意境 · GPT Image 2
-        </span>
         <button
           className="poem-art-regen"
           onClick={() => start(Math.floor(Math.random() * 2_000_000_000))}

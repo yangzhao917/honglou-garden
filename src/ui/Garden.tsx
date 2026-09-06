@@ -431,9 +431,6 @@ function RealBuilding({
 }) {
   const [err, setErr] = useState(false);
   const id = model.replace(/^\/models\//, "").replace(/\.glb$/, "");
-  useEffect(() => {
-    if (hasModel(id)) useGLTF.preload(model);
-  }, [model, id]);
   if (err || !hasModel(id)) return <>{fallback}</>;
   return (
     <ModelBoundary onError={() => setErr(true)} fallback={fallback}>
@@ -1243,7 +1240,7 @@ function CameraRig({
       position.set(0, 42, 0.1);
     } else if (command.mode === "perspective" || command.mode === "reset") {
       target.set(0, 0, 0);
-      position.set(24, 29, 32);
+      position.set(21, 25, 28);
     } else if (command.mode === "zoomIn" || command.mode === "zoomOut") {
       position
         .sub(target)
@@ -1328,18 +1325,12 @@ export default function Garden({
   onManual: () => void;
   onReady: () => void;
 }) {
-  useEffect(() => {
-    // 挂载即预载全部已就绪的模型，缩短逐个加载的等待。
-    places.forEach((p) => {
-      if (hasModel(p.id)) useGLTF.preload(`/models/${p.id}.glb`);
-    });
-  }, []);
   return (
     <GardenBoundary>
       <Canvas
         shadows
         dpr={[1, 1.5]}
-        camera={{ position: [24, 29, 32], fov: 32, near: 0.1, far: 150 }}
+        camera={{ position: [21, 25, 28], fov: 30, near: 0.1, far: 150 }}
         gl={{ antialias: true, alpha: true }}
         onCreated={({ gl }) => {
           gl.setClearColor("#edf0e6", 0);

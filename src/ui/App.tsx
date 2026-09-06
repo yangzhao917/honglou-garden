@@ -220,7 +220,7 @@ export default function App() {
           </span>
           <div>
             <strong>红楼游园</strong>
-            <span>A GARDEN OF DREAMS</span>
+            <span>HONGLOU GARDEN</span>
           </div>
         </a>
         <nav aria-label="主导航">

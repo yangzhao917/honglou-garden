@@ -45,7 +45,7 @@ export default function PoemArt({ poem, compact = false }: Props) {
       try {
         let task = pendingArt.get(poem.id);
         if (!task) {
-          task = generateImage({ prompt });
+          task = generateImage({ poemId: poem.id, seed });
           pendingArt.set(poem.id, task);
         }
         const r = await task;

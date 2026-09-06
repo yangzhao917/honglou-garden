@@ -1,7 +1,8 @@
-// 诗词意境图的浏览器用例：只向同源服务端发送提示词，密钥始终留在服务端环境变量中。
+// 诗词意境图的浏览器用例：只发送条目 ID 与随机种子，密钥和最终提示词留在服务端。
 
 export interface ImageGenOptions {
-  prompt: string;
+  poemId: string;
+  seed: number;
   signal?: AbortSignal;
 }
 
@@ -16,7 +17,7 @@ export async function generateImage(
     method: "POST",
     signal: options.signal,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: options.prompt }),
+    body: JSON.stringify({ poemId: options.poemId, seed: options.seed }),
   });
   const payload = await response.json().catch(() => null);
 

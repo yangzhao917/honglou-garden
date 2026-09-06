@@ -1,7 +1,9 @@
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { buildPoemPrompt } from "./src/application/poemArt";
+import { literary } from "./src/infrastructure/catalog";
 
-const MAX_PROMPT_LENGTH = 6_000;
+const MAX_BODY_BYTES = 512;
 
 /**
  * Vite 不会运行 Vercel Function；本地开发时用同一路径代理图片请求，
@@ -15,24 +17,50 @@ function poemImageDevApi(apiKey: string | undefined): Plugin {
         if (request.method !== "POST") return next();
 
         const chunks: Buffer[] = [];
-        request.on("data", (chunk: Buffer) => chunks.push(chunk));
+        let bodyBytes = 0;
+        let bodyTooLarge = false;
+        request.on("data", (chunk: Buffer) => {
+          bodyBytes += chunk.length;
+          if (bodyBytes > MAX_BODY_BYTES) {
+            bodyTooLarge = true;
+            return;
+          }
+          chunks.push(chunk);
+        });
         request.on("error", () => response.statusCode = 400);
         request.on("end", () => {
           void (async () => {
+            if (bodyTooLarge) {
+              response.statusCode = 413;
+              response.setHeader("Content-Type", "application/json");
+              response.end(JSON.stringify({ error: "request_too_large" }));
+              return;
+            }
             const rawBody = Buffer.concat(chunks).toString("utf8");
-            const prompt = (() => {
+            const requestData = (() => {
               try {
                 const body = JSON.parse(rawBody);
-                return typeof body?.prompt === "string" ? body.prompt.trim() : "";
+                return {
+                  poemId: typeof body?.poemId === "string" ? body.poemId : "",
+                  seed: Number(body?.seed),
+                };
               } catch {
-                return "";
+                return { poemId: "", seed: Number.NaN };
               }
             })();
+            const poem = literary.find(
+              (entry) => entry.kind === "poem" && entry.id === requestData.poemId,
+            );
 
-            if (!prompt || prompt.length > MAX_PROMPT_LENGTH) {
+            if (
+              !poem ||
+              !Number.isSafeInteger(requestData.seed) ||
+              requestData.seed < 0 ||
+              requestData.seed > 2_000_000_000
+            ) {
               response.statusCode = 400;
               response.setHeader("Content-Type", "application/json");
-              response.end(JSON.stringify({ error: "invalid_prompt" }));
+              response.end(JSON.stringify({ error: "invalid_request" }));
               return;
             }
             if (!apiKey) {
@@ -51,7 +79,7 @@ function poemImageDevApi(apiKey: string | undefined): Plugin {
                 },
                 body: JSON.stringify({
                   model: "gpt-image-2",
-                  prompt,
+                  prompt: buildPoemPrompt(poem, requestData.seed),
                   n: 1,
                   size: "1024x1024",
                   quality: "low",
@@ -85,29 +113,12 @@ function poemImageDevApi(apiKey: string | undefined): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const dashscopeTarget = env.ALIYUN_WORKSPACE_ID
-    ? `${env.ALIYUN_WORKSPACE_ID}.cn-beijing.maas.aliyuncs.com`
-    : "ws-7xqji8kqvqf94jvv.cn-beijing.maas.aliyuncs.com";
 
   return {
     plugins: [react(), poemImageDevApi(env.OPENAI_API_KEY)],
     server: {
       port: 5173,
       strictPort: true,
-      proxy: {
-        "/api/dashscope": {
-          target: `https://${dashscopeTarget}`,
-          changeOrigin: true,
-          secure: true,
-          rewrite: (path) => path.replace(/^\/api\/dashscope/, "/api/v1"),
-          configure: (proxy) => {
-            proxy.on("proxyReq", (proxyRequest) => {
-              const key = env.DASHSCOPE_API_KEY;
-              if (key) proxyRequest.setHeader("Authorization", `Bearer ${key}`);
-            });
-          },
-        },
-      },
     },
     build: {
       rollupOptions: {

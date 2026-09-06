@@ -102,7 +102,7 @@ test("手机无横向溢出，索引与详情可用", async ({ page }) => {
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await page.screenshot({ path: "docs/mobile-preview.png", fullPage: true });
+  await page.screenshot({ path: "test-results/mobile-preview.png", fullPage: true });
 });
 
 test("人物关系图谱可全屏、切换人物并返回", async ({ page }) => {
@@ -116,9 +116,8 @@ test("人物关系图谱可全屏、切换人物并返回", async ({ page }) => 
   await expect(page.locator(".graph-full-head")).toContainText("林黛玉");
   // 全屏内点击节点切换人物
   await page
-    .locator(".graph-fullscreen .rf-person")
-    .filter({ hasText: "宝钗" })
-    .first()
+    .locator(".graph-fullscreen .react-flow__node")
+    .filter({ hasText: "薛宝钗" })
     .click();
   await expect(page.locator(".graph-full-head h3")).toContainText("薛宝钗");
   // 关闭回到人物详情

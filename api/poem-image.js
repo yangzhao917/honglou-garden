@@ -884,7 +884,7 @@ var poems = literary.filter((l) => l.kind === "poem");
 var foods = literary.filter((l) => l.kind === "food");
 var medicines = literary.filter((l) => l.kind === "medicine");
 
-// api/poem-image.ts
+// scripts/poem-image.ts
 var MAX_BODY_BYTES = 512;
 var WINDOW_MS = 10 * 60 * 1e3;
 var MAX_REQUESTS_PER_WINDOW = 6;

@@ -2,8 +2,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 // Vercel 的 Node ESM 运行时不会为相对导入自动补全扩展名；显式写出 .ts，
 // 让构建器在打包函数时保留可解析的模块边界。
-import { buildPoemPrompt } from "../src/application/poemArt.ts";
-import { literary } from "../src/infrastructure/catalog.ts";
+import { buildPoemPrompt } from "../src/application/poemArt";
+import { literary } from "../src/infrastructure/catalog";
 
 const MAX_BODY_BYTES = 512;
 const WINDOW_MS = 10 * 60 * 1_000;
